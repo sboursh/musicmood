@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mood Music</title>
+
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: Arial, sans-serif;
+        background: #0f0f0f;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-bottom: 60px;
+      }
+
+      h1 {
+        margin-top: 20px;
+      }
+
+      #moodWrapper {
+        position: relative;
+        margin-top: 20px;
+      }
+
+      #moodBox {
+        width: 320px;
+        height: 320px;
+        background: linear-gradient(135deg, #1e1e1e, #2a2a2a);
+        border-radius: 12px;
+        position: relative;
+        border: 2px solid #333;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      #moodIndicator {
+        position: absolute;
+        width: 14px;
+        height: 14px;
+        background: #1db954;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        box-shadow: 0 0 10px #1db954;
+      }
+
+      .axis-label {
+        position: absolute;
+        font-size: 12px;
+        color: #aaa;
+      }
+      .label-top {
+        top: -20px;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+      .label-bottom {
+        bottom: -20px;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+      .label-left {
+        left: -50px;
+        top: 50%;
+        transform: translateY(-50%) rotate(-90deg);
+      }
+      .label-right {
+        right: -60px;
+        top: 50%;
+        transform: translateY(-50%) rotate(90deg);
+      }
+
+      #genreContainer {
+        margin: 24px 0 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+        max-width: 400px;
+      }
+
+      .genre {
+        padding: 8px 14px;
+        border-radius: 20px;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        cursor: pointer;
+        transition: 0.2s;
+        font-size: 14px;
+        user-select: none;
+      }
+      .genre:hover {
+        background: #2a2a2a;
+      }
+      .genre.selected {
+        background: #1db954;
+        color: black;
+        font-weight: bold;
+        border: 1px solid #1db954;
+      }
+
+      #findMatchBtn {
+        margin-top: 8px;
+        padding: 10px 32px;
+        border: none;
+        border-radius: 24px;
+        background: #1db954;
+        color: black;
+        font-weight: bold;
+        font-size: 15px;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+      #findMatchBtn:hover {
+        background: #1ed760;
+      }
+      #findMatchBtn:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+
+      /* ── CD Loader ── */
+      #loader {
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        margin-top: 40px;
+      }
+      #loader.visible {
+        display: flex;
+      }
+
+      .cd {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        position: relative;
+        animation: spin 1.4s linear infinite;
+        background:
+          radial-gradient(circle at 50% 50%, #111 18%, transparent 18%),
+          conic-gradient(
+            #2a2a2a 0deg,
+            #3a3a3a 15deg,
+            #1a1a1a 30deg,
+            #444 45deg,
+            #222 60deg,
+            #3a3a3a 75deg,
+            #1a1a1a 90deg,
+            #444 120deg,
+            #2a2a2a 150deg,
+            #1a1a1a 180deg,
+            #3a3a3a 210deg,
+            #444 240deg,
+            #2a2a2a 270deg,
+            #1a1a1a 300deg,
+            #3a3a3a 330deg,
+            #2a2a2a 360deg
+          );
+        box-shadow:
+          0 0 0 2px #333,
+          inset 0 0 12px rgba(29, 185, 84, 0.15);
+      }
+
+      .cd::before {
+        content: "";
+        position: absolute;
+        inset: 6px;
+        border-radius: 50%;
+        background: conic-gradient(
+          #1db954,
+          #1ed760,
+          #17a84a,
+          #a8e6cf,
+          #1db954,
+          #17a84a,
+          #1ed760,
+          #1db954
+        );
+        opacity: 0.18;
+      }
+
+      .cd::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 16px;
+        height: 16px;
+        background: #0f0f0f;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        border: 2px solid #444;
+      }
+
+      @keyframes spin {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      #loader p {
+        font-size: 13px;
+        color: #aaa;
+        animation: pulse 1.4s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 0.5;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+
+      /* ── Results ── */
+      #results {
+        margin-top: 30px;
+        width: 90%;
+        max-width: 800px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 15px;
+      }
+
+      .card {
+        background: #1a1a1a;
+        border-radius: 10px;
+        padding: 10px;
+        transition: 0.2s;
+      }
+      .card:hover {
+        transform: scale(1.03);
+        background: #222;
+      }
+      .card img {
+        width: 100%;
+        border-radius: 8px;
+      }
+      .card h3 {
+        font-size: 14px;
+        margin: 8px 0 4px;
+      }
+      .card p {
+        font-size: 12px;
+        color: #aaa;
+      }
+      .card button {
+        margin-top: 8px;
+        width: 100%;
+        padding: 6px;
+        border: none;
+        border-radius: 6px;
+        background: #1db954;
+        color: black;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      .card button:hover {
+        background: #1ed760;
+      }
+
+      .card .like-btn {
+        margin-top: 6px;
+        width: 100%;
+        padding: 6px;
+        border: none;
+        border-radius: 6px;
+        background: #333;
+        color: white;
+        font-size: 13px;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+      .card .like-btn:hover:not(:disabled) {
+        background: #444;
+      }
+      .card .like-btn:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+
+      #errorMsg {
+        margin-top: 20px;
+        color: #ff6b6b;
+        font-size: 14px;
+        display: none;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Mood Music</h1>
+    <p style="color: #aaa; margin-top: 6px; font-size: 13px">
+      Drag to set your mood + energy
+    </p>
+    <a href="/login" style="margin-top: 12px; font-size: 13px; color: #1db954">
+      Log in with Spotify to like songs
+    </a>
+    <div id="moodWrapper">
+      <div id="moodBox">
+        <div id="moodIndicator" style="left: 50%; top: 50%"></div>
+      </div>
+      <div class="axis-label label-top">FAST</div>
+      <div class="axis-label label-bottom">SLOW</div>
+      <div class="axis-label label-left">SAD</div>
+      <div class="axis-label label-right">HAPPY</div>
+    </div>
+
+    <div id="genreContainer">
+      <div class="genre" data-genre="punk">Punk</div>
+      <div class="genre" data-genre="indie">Indie</div>
+      <div class="genre" data-genre="rock">Rock</div>
+      <div class="genre" data-genre="hip-hop">Hip-Hop</div>
+      <div class="genre" data-genre="metal">Metal</div>
+      <div class="genre" data-genre="classical">Classical</div>
+    </div>
+
+    <button id="findMatchBtn">Find Your Match</button>
+
+    <div id="loader">
+      <div class="cd"></div>
+      <p>Finding your mood music...</p>
+    </div>
+
+    <div id="errorMsg"></div>
+    <div id="results"></div>
+
+    <script>
+      const moodBox = document.getElementById("moodBox");
+      const indicator = document.getElementById("moodIndicator");
+      const results = document.getElementById("results");
+      const loader = document.getElementById("loader");
+      const errorMsg = document.getElementById("errorMsg");
+      const btn = document.getElementById("findMatchBtn");
+
+      let currentMood = { valence: 0.5, energy: 0.5 };
+      let selectedGenre = null;
+      let dragging = false;
+
+      function updateMood(e) {
+        const rect = moodBox.getBoundingClientRect();
+        let x = (e.clientX - rect.left) / rect.width;
+        let y = (e.clientY - rect.top) / rect.height;
+        x = Math.max(0, Math.min(1, x));
+        y = Math.max(0, Math.min(1, y));
+        indicator.style.left = `${x * 100}%`;
+        indicator.style.top = `${y * 100}%`;
+        currentMood = { valence: x, energy: 1 - y };
+      }
+
+      moodBox.addEventListener("mousedown", (e) => {
+        dragging = true;
+        updateMood(e);
+      });
+      window.addEventListener("mousemove", (e) => {
+        if (dragging) updateMood(e);
+      });
+      window.addEventListener("mouseup", () => {
+        dragging = false;
+      });
+
+      moodBox.addEventListener(
+        "touchstart",
+        (e) => {
+          dragging = true;
+          updateMood(e.touches[0]);
+        },
+        { passive: true },
+      );
+      window.addEventListener(
+        "touchmove",
+        (e) => {
+          if (dragging) updateMood(e.touches[0]);
+        },
+        { passive: true },
+      );
+      window.addEventListener("touchend", () => {
+        dragging = false;
+      });
+
+      document.querySelectorAll(".genre").forEach((el) => {
+        el.addEventListener("click", () => {
+          document
+            .querySelectorAll(".genre")
+            .forEach((g) => g.classList.remove("selected"));
+          el.classList.add("selected");
+          selectedGenre = el.dataset.genre;
+        });
+      });
+
+      function setLoading(on) {
+        loader.classList.toggle("visible", on);
+        btn.disabled = on;
+        btn.textContent = on ? "Finding..." : "Find Your Match";
+        if (on) {
+          results.innerHTML = "";
+          errorMsg.style.display = "none";
+        }
+      }
+
+      function renderTracks(tracks) {
+        results.innerHTML = tracks
+          .map(
+            (t, i) => `
+    <div class="card">
+      <img src="${t.album_art || ""}" alt="${t.name}" />
+      <h3>${t.name}</h3>
+      <p>${t.artist}</p>
+      <button class="spotify-btn" onclick="window.open('${t.url}', '_blank')">Open in Spotify</button>
+      <button class="like-btn" data-id="${t.id}" data-index="${i}">♡ Like</button>
+    </div>
+  `,
+          )
+          .join("");
+
+        document.querySelectorAll(".like-btn").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const id = btn.dataset.id;
+            btn.disabled = true;
+            btn.textContent = "Adding...";
+
+            try {
+              const res = await fetch("/like", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ track_id: id }),
+              });
+
+              if (res.status === 401) {
+                btn.textContent = "Login first";
+                btn.style.background = "#ff6b6b";
+                btn.disabled = false;
+                window.open("/login", "_blank", "width=500,height=700");
+                return;
+              }
+
+              const data = await res.json();
+
+              if (data.ok) {
+                btn.textContent = "♥ Liked!";
+                btn.style.background = "#1db954";
+                btn.style.color = "black";
+              } else {
+                btn.textContent = "Failed — try again";
+                btn.style.background = "#ff6b6b";
+                btn.disabled = false;
+              }
+            } catch (err) {
+              btn.textContent = "Error";
+              btn.style.background = "#ff6b6b";
+              btn.disabled = false;
+            }
+          });
+        });
+      }
+
+      btn.addEventListener("click", async () => {
+        const genre = selectedGenre || "any";
+        setLoading(true);
+
+        try {
+          const res = await fetch(
+            `http://127.0.0.1:5000/recommend?valence=${currentMood.valence.toFixed(2)}&energy=${currentMood.energy.toFixed(2)}&genre=${genre}`,
+          );
+          const data = await res.json();
+
+          if (data.error) {
+            errorMsg.textContent = `Error: ${data.error}`;
+            errorMsg.style.display = "block";
+          } else if (!data.length) {
+            errorMsg.textContent =
+              "No tracks found. Try a different mood or genre.";
+            errorMsg.style.display = "block";
+          } else {
+            renderTracks(data);
+          }
+        } catch (err) {
+          errorMsg.textContent =
+            "Could not reach Flask API. Is it running on port 5000?";
+          errorMsg.style.display = "block";
+        }
+
+        setLoading(false);
+      });
+    </script>
+  </body>
+</html>
